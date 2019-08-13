@@ -170,10 +170,6 @@ os.mkdir(dirpath)
 # data to track resource types handled.
 resource_types_handled = []
 
-print("resource types:")
-for key in resource_lists.keys():
-    print(hex(key))
-
 # Handle .ICO files
 if 0xE in resource_lists.keys():
     resources_to_extract = resource_lists[0xE]
@@ -199,8 +195,15 @@ if 0x2 in resource_lists.keys():
             # build bitmap header
             outfile.write('BM'.encode('utf8'))
             input_file.seek(offset+0xE)
-            num_colors = 1 << read_word()
-            outfile.write(struct.pack('<IxxxxI', int(length+0xE), 0x36+(num_colors*4)))
+            bbp = read_word()
+            pallet_size = 0
+            if bbp <= 8:
+                # Number of colors
+                pallet_size = 1 << bbp
+                # 4 bytes per color
+                pallet_size = pallet_size*4;
+
+            outfile.write(struct.pack('<IxxxxI', int(length+0xE), 0x36+pallet_size))
             # Write DIB data from exe file
             input_file.seek(offset)
             outfile.write(input_file.read(length))
