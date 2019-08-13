@@ -48,7 +48,7 @@ if dos_header[0x0:0x2].decode('utf8') != 'MZ':
     sys.exit(1)
 
 # Fetch the new exectuable offset
-ne_header_offset = struct.unpack('<i', dos_header[0x3C:0x40])[0]
+ne_header_offset = struct.unpack('<I', dos_header[0x3C:0x40])[0]
 
 
 # Seek to the new executable header
@@ -62,3 +62,20 @@ if ne_header[0x0:0x2].decode('utf8') != 'NE':
     print("This is not a valid NE executable!")
     cleanup()
     sys.exit(1)
+
+# Get offset to resource table
+resource_table_offset = struct.unpack('<H', ne_header[0x24:0x26])[0]
+
+# Seek to resource table
+input_file.seek(ne_header_offset+resource_table_offset)
+
+# Resource lists
+resource_lists = {}
+
+# Get alignment shift count
+bytebuf = input_file.read(0x2)
+resource_alignment_shift_count = struct.unpack('<H', bytebuf)[0]
+resource_block_size = 1 << resource_alignment_shift_count;
+
+print("Resource alignment shift count: {}".format(resource_alignment_shift_count))
+print("Resource block size: {}".format(resource_block_size))
