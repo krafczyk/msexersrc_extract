@@ -66,16 +66,49 @@ if ne_header[0x0:0x2].decode('utf8') != 'NE':
 # Get offset to resource table
 resource_table_offset = struct.unpack('<H', ne_header[0x24:0x26])[0]
 
-# Seek to resource table
-input_file.seek(ne_header_offset+resource_table_offset)
+# Get offset of resident name table
+resident_name_table_offset = struct.unpack('<H', ne_header[0x26:0x28])[0]
 
 # Resource lists
 resource_lists = {}
 
+# Seek to resource table
+current_offset = ne_header_offset+resource_table_offset
+input_file.seek(current_offset)
+
+def read_bytes(num):
+    global current_offset
+    bytebuf = input_file.read(num)
+    current_offset += num
+    return bytebuf
+
 # Get alignment shift count
-bytebuf = input_file.read(0x2)
+bytebuf = read_bytes(0x2)
 resource_alignment_shift_count = struct.unpack('<H', bytebuf)[0]
 resource_block_size = 1 << resource_alignment_shift_count;
 
-print("Resource alignment shift count: {}".format(resource_alignment_shift_count))
-print("Resource block size: {}".format(resource_block_size))
+print("Resource Alignment Shift Count: {}".format(resource_alignment_shift_count))
+print("Resource Block Size: {}".format(resource_block_size))
+
+print("current_offset: {}".format(current_offset))
+print("resident_name_table_offset: {}".format(resident_name_table_offset+ne_header_offset))
+
+# Loop through table.
+while ((ne_header_offset+resident_name_table_offset) - current_offset) >= 20:
+    # New table type
+    bytebuf = read_bytes(0x8)
+    type_raw = struct.unpack('<H', bytebuf[0x0:0x2])[0]
+    num_resources = struct.unpack('<H', bytebuf[0x2:0x4])[0]
+    if (type_raw & 0x8000) == 0:
+        print("ERROR! don't support non integer resource types!")
+        cleanup()
+        sys.exit(1)
+    type_int = type_raw & 0xFFF
+    r_i = 0
+
+    print("Type is: {}".format(hex(type_int)))
+
+    print("Exit early!")
+    sys.exit(0)
+
+
