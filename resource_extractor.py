@@ -105,9 +105,9 @@ class resource_table_entry(object):
             self._resource_name = input_file.read(length).decode('utf8')
             input_file.seek(current_offset)
         else:
-            self._resource_name = "#{}".format(hex(self._rid & 0xFFF))
+            self._resource_name = "{}".format(hex(self._rid & 0xFFF)[2:])
     def __str__(self):
-        str_trans = "name: {} ".format(self._resource_name)
+        str_trans = "name: #{} ".format(self._resource_name)
         if self._flagword & 0x10:
             str_trans += "moveable "
         if self._flagword & 0x20:
@@ -143,12 +143,45 @@ while True:
 
     resource_lists[type_int] = []
 
-    print("Type is: {}".format(hex(type_int)))
-    print("There are: {}".format(num_resources))
-
     r_i = 0
     while r_i < num_resources:
         r_i += 1
         resource_entry = resource_table_entry()
         resource_lists[type_int].append(resource_entry)
-        print(resource_entry)
+
+
+# Extract certain resources
+
+# Prepare directory to put resources into
+if infile_path[-4:].lower() == '.exe':
+    dirpath = os.path.basename(infile_path[:-4])
+else:
+    dirpath = os.path.basename(infile_path)
+
+# Check that the output directory doesn't already exist
+if os.path.exists(dirpath):
+    print("ERROR! Output directory already exists!")
+    cleanup()
+    sys.exit(1)
+
+# Create the output directory
+os.mkdir(dirpath)
+
+# data to track resource types handled.
+resource_types_handled = []
+
+print("resource types:")
+for key in resource_lists.keys():
+    print(hex(key))
+
+# Handle .ICO files
+if 0xE in resource_lists.keys():
+    resources_to_extract = resource_lists[0xE]
+    resource_types_handled.append(0xE)
+
+    for resource in resources_to_extract:
+        offset = resource._offset*resource_block_size
+        length = resource._len*resource_block_size
+        input_file.seek(offset)
+        with open(os.path.join(dirpath,resource._resource_name)+".ICO", 'wb') as outfile:
+            outfile.write(input_file.read(length))
