@@ -91,9 +91,6 @@ def read_dword():
 resource_alignment_shift_count = read_word()
 resource_block_size = 1 << resource_alignment_shift_count;
 
-print("Resource Alignment Shift Count: {}".format(resource_alignment_shift_count))
-print("Resource Block Size: {}".format(resource_block_size))
-
 class resource_table_entry(object):
     def __init__(self):
         bytebuf = input_file.read(12)
@@ -207,5 +204,10 @@ if 0x2 in resource_lists.keys():
             # Write DIB data from exe file
             input_file.seek(offset)
             outfile.write(input_file.read(length))
+
+print("WARNING, no support for the following resource types: ")
+for key in resource_lists.keys():
+    if key not in resource_types_handled:
+        print(hex(key))
 
 cleanup()
