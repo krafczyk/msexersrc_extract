@@ -185,3 +185,21 @@ if 0xE in resource_lists.keys():
         input_file.seek(offset)
         with open(os.path.join(dirpath,resource._resource_name)+".ICO", 'wb') as outfile:
             outfile.write(input_file.read(length))
+
+# Handle bitmap files
+if 0x2 in resource_lists.keys():
+    resources_to_extract = resource_lists[0x2]
+    resource_types_handled.append(0x2)
+
+    for resource in resources_to_extract:
+        offset = resource._offset*resource_block_size
+        length = resource._len*resource_block_size
+        input_file.seek(offset)
+        with open(os.path.join(dirpath, resource._resource_name)+".bmp", 'wb') as outfile:
+            # build bitmap header
+            outfile.write('BM'.encode('utf8'))
+            outfile.write(struct.pack('<IxxxxI', int(length+0xE), int(0x36)))
+            # Write DIB data from exe file
+            outfile.write(input_file.read(length))
+
+cleanup()
