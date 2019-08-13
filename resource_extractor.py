@@ -63,52 +63,92 @@ if ne_header[0x0:0x2].decode('utf8') != 'NE':
     cleanup()
     sys.exit(1)
 
-# Get offset to resource table
-resource_table_offset = struct.unpack('<H', ne_header[0x24:0x26])[0]
+# Get offsets to tables
+table_offsets = struct.unpack('<HHHHH', ne_header[0x22:0x2C])
+
+seg_table_offset = table_offsets[0]
+resource_table_offset = table_offsets[1]
+resident_name_table_offset = table_offsets[2]
+mod_ref_table_offset = table_offsets[3]
+imp_name_table_offset = table_offsets[4]
 
 # Get offset of resident name table
 resident_name_table_offset = struct.unpack('<H', ne_header[0x26:0x28])[0]
 
-# Resource lists
-resource_lists = {}
-
 # Seek to resource table
-current_offset = ne_header_offset+resource_table_offset
-input_file.seek(current_offset)
+input_file.seek(ne_header_offset+resource_table_offset)
 
-def read_bytes(num):
-    global current_offset
-    bytebuf = input_file.read(num)
-    current_offset += num
-    return bytebuf
+def read_byte():
+    return struct.unpack('<B', input_file.read(0x1))[0]
+
+def read_word():
+    return struct.unpack('<H', input_file.read(0x2))[0]
+
+def read_dword():
+    return struct.unpack('<I', input_file.read(0x4))[0]
 
 # Get alignment shift count
-bytebuf = read_bytes(0x2)
-resource_alignment_shift_count = struct.unpack('<H', bytebuf)[0]
+resource_alignment_shift_count = read_word()
 resource_block_size = 1 << resource_alignment_shift_count;
 
 print("Resource Alignment Shift Count: {}".format(resource_alignment_shift_count))
 print("Resource Block Size: {}".format(resource_block_size))
 
-print("current_offset: {}".format(current_offset))
-print("resident_name_table_offset: {}".format(resident_name_table_offset+ne_header_offset))
+class resource_table_entry(object):
+    def __init__(self):
+        bytebuf = input_file.read(12)
+        self._offset , self._len, self._flagword, self._rid = struct.unpack('<HHHH', bytebuf[0x0:0x8])
+        if (self._rid & 0x8000) == 0:
+            current_offset = input_file.tell()
+            input_file.seek(ne_header_offset+resource_table_offset+self._rid)
+            length = read_byte()
+            self._resource_name = input_file.read(length).decode('utf8')
+            input_file.seek(current_offset)
+        else:
+            self._resource_name = "#{}".format(hex(self._rid & 0xFFF))
+    def __str__(self):
+        str_trans = "name: {} ".format(self._resource_name)
+        if self._flagword & 0x10:
+            str_trans += "moveable "
+        if self._flagword & 0x20:
+            str_trans += "shareable "
+        if self._flagword & 0x40:
+            str_trans += "preload "
+
+        return str_trans
+
+# Resource lists
+resource_lists = {}
 
 # Loop through table.
-while ((ne_header_offset+resident_name_table_offset) - current_offset) >= 20:
+while True:
     # New table type
-    bytebuf = read_bytes(0x8)
-    type_raw = struct.unpack('<H', bytebuf[0x0:0x2])[0]
-    num_resources = struct.unpack('<H', bytebuf[0x2:0x4])[0]
+    type_raw = read_word()
+    if type_raw == 0:
+        break
+
     if (type_raw & 0x8000) == 0:
         print("ERROR! don't support non integer resource types!")
         cleanup()
         sys.exit(1)
+
+    num_resources = read_word()
+
+    # this if from semblance
+    resloader = read_dword()
+    if resloader != 0:
+        print("WARNING! resloader is not zero")
+
     type_int = type_raw & 0xFFF
-    r_i = 0
+
+    resource_lists[type_int] = []
 
     print("Type is: {}".format(hex(type_int)))
+    print("There are: {}".format(num_resources))
 
-    print("Exit early!")
-    sys.exit(0)
-
-
+    r_i = 0
+    while r_i < num_resources:
+        r_i += 1
+        resource_entry = resource_table_entry()
+        resource_lists[type_int].append(resource_entry)
+        print(resource_entry)
