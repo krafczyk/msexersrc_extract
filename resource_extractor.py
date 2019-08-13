@@ -198,8 +198,14 @@ if 0x2 in resource_lists.keys():
         with open(os.path.join(dirpath, resource._resource_name)+".bmp", 'wb') as outfile:
             # build bitmap header
             outfile.write('BM'.encode('utf8'))
-            outfile.write(struct.pack('<IxxxxI', int(length+0xE), int(0x36)))
+            input_file.seek(offset+0xE)
+            bbp = read_word()
+            num_colors = 0
+            if bbp <= 8:
+                num_colors = bbp*4
+            outfile.write(struct.pack('<IxxxxI', int(length+0xE), 0x36+(num_colors*4)))
             # Write DIB data from exe file
+            input_file.seek(offset)
             outfile.write(input_file.read(length))
 
 cleanup()
